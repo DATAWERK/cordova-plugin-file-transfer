@@ -20,24 +20,18 @@
 
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
-    id="org.apache.cordova.file-transfer"
-    version="0.4.5-dev">
-    <name>File Transfer</name>
-    <description>Cordova File Transfer Plugin</description>
+    id="de.datawerk.de.file-transfer-simple"
+    version="1.0.0">
+    <name>Simple File Transfer</name>
+    <description>Cordova Simple File Transfer Plugin without multipart</description>
     <license>Apache 2.0</license>
-    <keywords>cordova,file,transfer</keywords>
-    <repo>https://git-wip-us.apache.org/repos/asf/cordova-plugin-file-transfer.git</repo>
-    <issue>https://issues.apache.org/jira/browse/CB/component/12320650</issue>
+    <keywords>cordova,file,transfer.simple</keywords>
 
     <!-- dependency id="org.apache.cordova.file@1" /-->
     <dependency id="org.apache.cordova.file" version=">=1.0.1" />
 
-    <js-module src="www/FileTransferError.js" name="FileTransferError">
-        <clobbers target="window.FileTransferError" />
-    </js-module>
-
-    <js-module src="www/FileTransfer.js" name="FileTransfer">
-        <clobbers target="window.FileTransfer" />
+    <js-module src="www/FileTransferSimple.js" name="FileTransferSimple">
+        <clobbers target="window.FileTransferSimple" />
     </js-module>
 
     <!-- android -->
@@ -57,91 +51,17 @@
         <source-file src="src/android/FileUploadResult.java" target-dir="src/org/apache/cordova/filetransfer" />
     </platform>
 
-    <!-- amamzon-fireos -->
-    <platform name="amazon-fireos">
-        <config-file target="res/xml/config.xml" parent="/*">
-            <feature name="FileTransfer" >
-                <param name="android-package" value="org.apache.cordova.filetransfer.FileTransfer"/>
-            </feature>
-        </config-file>
-
-        <config-file target="AndroidManifest.xml" parent="/*">
-            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-        </config-file>
-
-        <source-file src="src/amazon/FileTransfer.java" target-dir="src/org/apache/cordova/filetransfer" />
-        <source-file src="src/android/FileProgressResult.java" target-dir="src/org/apache/cordova/filetransfer" />
-        <source-file src="src/android/FileUploadResult.java" target-dir="src/org/apache/cordova/filetransfer" />
-    </platform>
-    
-    <!-- ubuntu -->
-    <platform name="ubuntu">
-        <header-file src="src/ubuntu/file-transfer.h" />
-        <source-file src="src/ubuntu/file-transfer.cpp" />
-    </platform>
-
-    <!-- blackberry10 -->
-    <platform name="blackberry10">
-        <config-file target="www/config.xml" parent="/widget">
-            <feature name="FileTransfer" value="FileTransfer"></feature>
-        </config-file>
-        <js-module src="www/blackberry10/FileTransferProxy.js" name="FileTransferProxy" >
-            <runs />
-        </js-module>
-        <js-module src="www/blackberry10/xhrFileTransfer.js" name="xhrFileTransfer" />
-        <!--
-        <js-module src="www/blackberry10/abort.js" name="abortProxy" />
-        <js-module src="www/blackberry10/download.js" name="downloadProxy" />
-        <js-module src="www/blackberry10/upload.js" name="uploadProxy" />
-        -->
-    </platform>
-
     <!-- ios -->
     <platform name="ios">
         <config-file target="config.xml" parent="/*">
-            <feature name="FileTransfer">
-                <param name="ios-package" value="CDVFileTransfer" />
+            <feature name="FileTransferSimple">
+                <param name="ios-package" value="CDVFileTransferSimple" />
             </feature>
         </config-file>
-        <header-file src="src/ios/CDVFileTransfer.h" />
-        <source-file src="src/ios/CDVFileTransfer.m" />
+        <header-file src="src/ios/CDVFileTransferSimple.h" />
+        <source-file src="src/ios/CDVFileTransferSimple.m" />
 
         <framework src="AssetsLibrary.framework" />
-    </platform>
-
-    <!-- wp7 -->
-    <platform name="wp7">
-        <config-file target="config.xml" parent="/*">
-            <feature name="FileTransfer">
-                <param name="wp-package" value="FileTransfer"/>
-            </feature>
-        </config-file>
-
-        <source-file src="src/wp/FileTransfer.cs" />
-
-        <js-module src="www/wp7/base64.js" name="base64">
-            <clobbers target="window.FileTransferBase64" />
-        </js-module>
-
-    </platform>
-
-    <!-- wp8 -->
-    <platform name="wp8">
-        <config-file target="config.xml" parent="/*">
-            <feature name="FileTransfer">
-                <param name="wp-package" value="FileTransfer"/>
-            </feature>
-        </config-file>
-
-        <source-file src="src/wp/FileTransfer.cs" />
-
-    </platform>
-
-    <!-- windows8 -->
-    <platform name="windows8">
-        <js-module src="www/windows8/FileTransferProxy.js" name="FileTransferProxy">
-            <clobbers target="" />
-        </js-module>
     </platform>
 
 </plugin>

@@ -21,24 +21,24 @@
 #import <Cordova/CDVPlugin.h>
 #import "CDVFile.h"
 
-enum CDVFileTransferError {
+enum CDVFileTransferSimpleError {
     FILE_NOT_FOUND_ERR = 1,
     INVALID_URL_ERR = 2,
     CONNECTION_ERR = 3,
     CONNECTION_ABORTED = 4
 };
-typedef int CDVFileTransferError;
+typedef int CDVFileTransferSimpleError;
 
-enum CDVFileTransferDirection {
+enum CDVFileTransferSimpleDirection {
     CDV_TRANSFER_UPLOAD = 1,
     CDV_TRANSFER_DOWNLOAD = 2,
 };
-typedef int CDVFileTransferDirection;
+typedef int CDVFileTransferSimpleDirection;
 
 // Magic value within the options dict used to set a cookie.
 extern NSString* const kOptionsKeyCookie;
 
-@interface CDVFileTransfer : CDVPlugin {}
+@interface CDVFileTransferSimple : CDVPlugin {}
 
 - (void)upload:(CDVInvokedUrlCommand*)command;
 - (void)download:(CDVInvokedUrlCommand*)command;
@@ -57,9 +57,9 @@ extern NSString* const kOptionsKeyCookie;
 @property (readonly) NSMutableDictionary* activeTransfers;
 @end
 
-@class CDVFileTransferEntityLengthRequest;
+@class CDVFileTransferSimpleEntityLengthRequest;
 
-@interface CDVFileTransferDelegate : NSObject {}
+@interface CDVFileTransferSimpleDelegate : NSObject {}
 
 - (void)updateBytesExpected:(long long)newBytesExpected;
 - (void)cancelTransfer:(NSURLConnection*)connection;
@@ -67,8 +67,8 @@ extern NSString* const kOptionsKeyCookie;
 @property (strong) NSMutableData* responseData; // atomic
 @property (nonatomic, strong) NSDictionary* responseHeaders;
 @property (nonatomic, assign) UIBackgroundTaskIdentifier backgroundTaskID;
-@property (nonatomic, strong) CDVFileTransfer* command;
-@property (nonatomic, assign) CDVFileTransferDirection direction;
+@property (nonatomic, strong) CDVFileTransferSimple* command;
+@property (nonatomic, assign) CDVFileTransferSimpleDirection direction;
 @property (nonatomic, strong) NSURLConnection* connection;
 @property (nonatomic, copy) NSString* callbackId;
 @property (nonatomic, copy) NSString* objectId;
@@ -81,7 +81,7 @@ extern NSString* const kOptionsKeyCookie;
 @property (nonatomic, assign) long long bytesExpected;
 @property (nonatomic, assign) BOOL trustAllHosts;
 @property (strong) NSFileHandle* targetFileHandle;
-@property (nonatomic, strong) CDVFileTransferEntityLengthRequest* entityLengthRequest;
+@property (nonatomic, strong) CDVFileTransferSimpleEntityLengthRequest* entityLengthRequest;
 @property (nonatomic, strong) CDVFile *filePlugin;
 
 @end

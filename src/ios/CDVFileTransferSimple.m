@@ -18,7 +18,7 @@
  */
 
 #import <Cordova/CDV.h>
-#import "CDVFileTransfer.h"
+#import "CDVFileTransferSimple.h"
 #import "CDVLocalFilesystem.h"
 
 #import <AssetsLibrary/ALAsset.h>
@@ -26,11 +26,11 @@
 #import <AssetsLibrary/ALAssetsLibrary.h>
 #import <CFNetwork/CFNetwork.h>
 
-@interface CDVFileTransfer ()
+@interface CDVFileTransferSimple ()
 // Sets the requests headers for the request.
 - (void)applyRequestHeaders:(NSDictionary*)headers toRequest:(NSMutableURLRequest*)req;
 // Creates a delegate to handle an upload.
-- (CDVFileTransferDelegate*)delegateForUploadCommand:(CDVInvokedUrlCommand*)command;
+- (CDVFileTransferSimpleDelegate*)delegateForUploadCommand:(CDVInvokedUrlCommand*)command;
 // Creates an NSData* for the file for the given upload arguments.
 - (void)fileDataForUploadCommand:(CDVInvokedUrlCommand*)command;
 @end
@@ -69,7 +69,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     return totalBytesWritten;
 }
 
-@implementation CDVFileTransfer
+@implementation CDVFileTransferSimple
 @synthesize activeTransfers;
 
 - (void)pluginInitialize {
@@ -146,7 +146,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     // unrecognised values)
     NSString* httpMethod = [command argumentAtIndex:10 withDefault:@"POST"];
     CDVPluginResult* result = nil;
-    CDVFileTransferError errorCode = 0;
+    CDVFileTransferSimpleError errorCode = 0;
 
     // NSURL does not accepts URLs with spaces in the path. We escape the path in order
     // to be more lenient.
@@ -244,14 +244,14 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     return req;
 }
 
-- (CDVFileTransferDelegate*)delegateForUploadCommand:(CDVInvokedUrlCommand*)command
+- (CDVFileTransferSimpleDelegate*)delegateForUploadCommand:(CDVInvokedUrlCommand*)command
 {
     NSString* source = [command.arguments objectAtIndex:0];
     NSString* server = [command.arguments objectAtIndex:1];
     BOOL trustAllHosts = [[command.arguments objectAtIndex:6 withDefault:[NSNumber numberWithBool:NO]] boolValue]; // allow self-signed certs
     NSString* objectId = [command.arguments objectAtIndex:9];
 
-    CDVFileTransferDelegate* delegate = [[CDVFileTransferDelegate alloc] init];
+    CDVFileTransferSimpleDelegate* delegate = [[CDVFileTransferSimpleDelegate alloc] init];
 
     delegate.command = self;
     delegate.callbackId = command.callbackId;
@@ -326,7 +326,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     if (req == nil) {
         return;
     }
-    CDVFileTransferDelegate* delegate = [self delegateForUploadCommand:command];
+    CDVFileTransferSimpleDelegate* delegate = [self delegateForUploadCommand:command];
     delegate.connection = [[NSURLConnection alloc] initWithRequest:req delegate:delegate startImmediately:NO];
     if (self.queue == nil) {
         self.queue = [[NSOperationQueue alloc] init];
@@ -349,7 +349,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     NSString* objectId = [command.arguments objectAtIndex:0];
 
     @synchronized (activeTransfers) {
-        CDVFileTransferDelegate* delegate = activeTransfers[objectId];
+        CDVFileTransferSimpleDelegate* delegate = activeTransfers[objectId];
         if (delegate != nil) {
             [delegate cancelTransfer:delegate.connection];
             CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:[self createFileTransferError:CONNECTION_ABORTED AndSource:delegate.source AndTarget:delegate.target]];
@@ -368,7 +368,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     NSDictionary* headers = [command.arguments objectAtIndex:4 withDefault:nil];
 
     CDVPluginResult* result = nil;
-    CDVFileTransferError errorCode = 0;
+    CDVFileTransferSimpleError errorCode = 0;
 
     NSURL* targetURL;
 
@@ -404,7 +404,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:sourceURL];
     [self applyRequestHeaders:headers toRequest:req];
 
-    CDVFileTransferDelegate* delegate = [[CDVFileTransferDelegate alloc] init];
+    CDVFileTransferSimpleDelegate* delegate = [[CDVFileTransferSimpleDelegate alloc] init];
     delegate.command = self;
     delegate.direction = CDV_TRANSFER_DOWNLOAD;
     delegate.callbackId = command.callbackId;
@@ -479,7 +479,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 - (void)onReset {
     @synchronized (activeTransfers) {
         while ([activeTransfers count] > 0) {
-            CDVFileTransferDelegate* delegate = [activeTransfers allValues][0];
+            CDVFileTransferSimpleDelegate* delegate = [activeTransfers allValues][0];
             [delegate cancelTransfer:delegate.connection];
         }
     }
@@ -487,18 +487,18 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 
 @end
 
-@interface CDVFileTransferEntityLengthRequest : NSObject {
+@interface CDVFileTransferSimpleEntityLengthRequest : NSObject {
     NSURLConnection* _connection;
-    CDVFileTransferDelegate* __weak _originalDelegate;
+    CDVFileTransferSimpleDelegate* __weak _originalDelegate;
 }
 
-- (CDVFileTransferEntityLengthRequest*)initWithOriginalRequest:(NSURLRequest*)originalRequest andDelegate:(CDVFileTransferDelegate*)originalDelegate;
+- (CDVFileTransferSimpleEntityLengthRequest*)initWithOriginalRequest:(NSURLRequest*)originalRequest andDelegate:(CDVFileTransferSimpleDelegate*)originalDelegate;
 
 @end
 
-@implementation CDVFileTransferEntityLengthRequest
+@implementation CDVFileTransferSimpleEntityLengthRequest
 
-- (CDVFileTransferEntityLengthRequest*)initWithOriginalRequest:(NSURLRequest*)originalRequest andDelegate:(CDVFileTransferDelegate*)originalDelegate
+- (CDVFileTransferSimpleEntityLengthRequest*)initWithOriginalRequest:(NSURLRequest*)originalRequest andDelegate:(CDVFileTransferSimpleDelegate*)originalDelegate
 {
     if (self) {
         DLog(@"Requesting entity length for GZIPped content...");
@@ -527,7 +527,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 
 @end
 
-@implementation CDVFileTransferDelegate
+@implementation CDVFileTransferSimpleDelegate
 
 @synthesize callbackId, connection = _connection, source, target, responseData, responseHeaders, command, bytesTransfered, bytesExpected, direction, responseCode, objectId, targetFileHandle, filePlugin;
 
@@ -592,7 +592,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 {
     [connection cancel];
     @synchronized (self.command.activeTransfers) {
-        CDVFileTransferDelegate* delegate = self.command.activeTransfers[self.objectId];
+        CDVFileTransferSimpleDelegate* delegate = self.command.activeTransfers[self.objectId];
         [self.command.activeTransfers removeObjectForKey:self.objectId];
         [[UIApplication sharedApplication] endBackgroundTask:delegate.backgroundTaskID];
         delegate.backgroundTaskID = UIBackgroundTaskInvalid;
@@ -643,7 +643,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
         if ((self.direction == CDV_TRANSFER_DOWNLOAD) && (self.responseCode == 200) && (self.bytesExpected == NSURLResponseUnknownLength)) {
             // Kick off HEAD request to server to get real length
             // bytesExpected will be updated when that response is returned
-            self.entityLengthRequest = [[CDVFileTransferEntityLengthRequest alloc] initWithOriginalRequest:connection.currentRequest andDelegate:self];
+            self.entityLengthRequest = [[CDVFileTransferSimpleEntityLengthRequest alloc] initWithOriginalRequest:connection.currentRequest andDelegate:self];
         }
     } else if ([response.URL isFileURL]) {
         NSDictionary* attr = [[NSFileManager defaultManager] attributesOfItemAtPath:[response.URL path] error:nil];

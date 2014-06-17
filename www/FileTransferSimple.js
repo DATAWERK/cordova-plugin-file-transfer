@@ -67,10 +67,10 @@ function getBasicAuthHeader(urlString) {
 var idCounter = 0;
 
 /**
- * FileTransfer uploads a file to a remote server.
+ * FileTransferSimple uploads a file to a remote server.
  * @constructor
  */
-var FileTransfer = function() {
+var FileTransferSimple = function() {
     this._id = ++idCounter;
     this.onprogress = null; // optional callback
 };
@@ -85,8 +85,8 @@ var FileTransfer = function() {
 * @param options {FileUploadOptions} Optional parameters such as file name and mimetype
 * @param trustAllHosts {Boolean} Optional trust all hosts (e.g. for self-signed certs), defaults to false
 */
-FileTransfer.prototype.upload = function(filePath, server, successCallback, errorCallback, options, trustAllHosts) {
-    argscheck.checkArgs('ssFFO*', 'FileTransfer.upload', arguments);
+FileTransferSimple.prototype.upload = function(filePath, server, successCallback, errorCallback, options, trustAllHosts) {
+    argscheck.checkArgs('ssFFO*', 'FileTransferSimple.upload', arguments);
     // check for options
     var fileKey = null;
     var fileName = null;
@@ -139,7 +139,7 @@ FileTransfer.prototype.upload = function(filePath, server, successCallback, erro
             successCallback && successCallback(result);
         }
     };
-    exec(win, fail, 'FileTransfer', 'upload', [filePath, server, fileKey, fileName, mimeType, params, trustAllHosts, chunkedMode, headers, this._id, httpMethod]);
+    exec(win, fail, 'FileTransferSimple', 'upload', [filePath, server, fileKey, fileName, mimeType, params, trustAllHosts, chunkedMode, headers, this._id, httpMethod]);
 };
 
 /**
@@ -151,8 +151,8 @@ FileTransfer.prototype.upload = function(filePath, server, successCallback, erro
  * @param trustAllHosts {Boolean} Optional trust all hosts (e.g. for self-signed certs), defaults to false
  * @param options {FileDownloadOptions} Optional parameters such as headers
  */
-FileTransfer.prototype.download = function(source, target, successCallback, errorCallback, trustAllHosts, options) {
-    argscheck.checkArgs('ssFF*', 'FileTransfer.download', arguments);
+FileTransferSimple.prototype.download = function(source, target, successCallback, errorCallback, trustAllHosts, options) {
+    argscheck.checkArgs('ssFF*', 'FileTransferSimple.download', arguments);
     var self = this;
 
     var basicAuthHeader = getBasicAuthHeader(source);
@@ -195,15 +195,15 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
         errorCallback(error);
     };
 
-    exec(win, fail, 'FileTransfer', 'download', [source, target, trustAllHosts, this._id, headers]);
+    exec(win, fail, 'FileTransferSimple', 'download', [source, target, trustAllHosts, this._id, headers]);
 };
 
 /**
  * Aborts the ongoing file transfer on this object. The original error
  * callback for the file transfer will be called if necessary.
  */
-FileTransfer.prototype.abort = function() {
-    exec(null, null, 'FileTransfer', 'abort', [this._id]);
+FileTransferSimple.prototype.abort = function() {
+    exec(null, null, 'FileTransferSimple', 'abort', [this._id]);
 };
 
-module.exports = FileTransfer;
+module.exports = FileTransferSimple;
