@@ -223,7 +223,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 
         [self.commandDelegate runInBackground:^{
             if (CFWriteStreamOpen(writeStream)) {
-                NSData* chunks[] = {postBodyBeforeFile, fileData, postBodyAfterFile};
+                NSData* chunks[] = {fileData};
                 int numChunks = sizeof(chunks) / sizeof(chunks[0]);
 
                 for (int i = 0; i < numChunks; ++i) {
@@ -239,9 +239,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
             CFRelease(writeStream);
         }];
     } else {
-        [postBodyBeforeFile appendData:fileData];
-        [postBodyBeforeFile appendData:postBodyAfterFile];
-        [req setHTTPBody:postBodyBeforeFile];
+        [req setHTTPBody:fileData];
     }
     return req;
 }
