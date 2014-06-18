@@ -20,15 +20,15 @@
 
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
-    id="de.datawerk.de.file-transfer-simple"
+    id="de.datawerk.file-transfer-simple"
     version="1.0.0">
     <name>Simple File Transfer</name>
     <description>Cordova Simple File Transfer Plugin without multipart</description>
     <license>Apache 2.0</license>
     <keywords>cordova,file,transfer.simple</keywords>
 
-    <!-- dependency id="org.apache.cordova.file@1" /-->
-    <dependency id="org.apache.cordova.file" version=">=1.0.1" />
+    <!-- dependency id="org.apache.cordova.file-transfer@1" /-->
+    <dependency id="org.apache.cordova.file-transfer" version=">=0.4.3" />
 
     <js-module src="www/FileTransferSimple.js" name="FileTransferSimple">
         <clobbers target="window.FileTransferSimple" />
