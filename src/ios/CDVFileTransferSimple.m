@@ -38,9 +38,9 @@
 // Buffer size to use for streaming uploads.
 static const NSUInteger kStreamBufferSize = 32768;
 // Magic value within the options dict used to set a cookie.
-NSString* const kOptionsKeyCookie = @"__cookie";
+NSString* const kOptionsKeyCookieSimple = @"__cookie";
 // Form boundary for multi-part requests.
-NSString* const kFormBoundary = @"+++++org.apache.cordova.formBoundary";
+NSString* const kFormBoundarySimple = @"+++++org.apache.cordova.formBoundary";
 
 // Writes the given data to the stream in a blocking way.
 // If successful, returns bytesToWrite.
@@ -170,21 +170,21 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     [req setHTTPMethod:httpMethod];
 
     //    Magic value to set a cookie
-    if ([options objectForKey:kOptionsKeyCookie]) {
-        [req setValue:[options objectForKey:kOptionsKeyCookie] forHTTPHeaderField:@"Cookie"];
+    if ([options objectForKey:kOptionsKeyCookieSimple]) {
+        [req setValue:[options objectForKey:kOptionsKeyCookieSimple] forHTTPHeaderField:@"Cookie"];
         [req setHTTPShouldHandleCookies:NO];
     }
 
-    NSString* contentType = [NSString stringWithFormat:@"multipart/form-data; boundary=%@", kFormBoundary];
+    NSString* contentType = [NSString stringWithFormat:@"multipart/form-data; boundary=%@", kFormBoundarySimple];
     [req setValue:contentType forHTTPHeaderField:@"Content-Type"];
     [self applyRequestHeaders:headers toRequest:req];
 
-    NSData* formBoundaryData = [[NSString stringWithFormat:@"--%@\r\n", kFormBoundary] dataUsingEncoding:NSUTF8StringEncoding];
+    NSData* formBoundaryData = [[NSString stringWithFormat:@"--%@\r\n", kFormBoundarySimple] dataUsingEncoding:NSUTF8StringEncoding];
     NSMutableData* postBodyBeforeFile = [NSMutableData data];
 
     for (NSString* key in options) {
         id val = [options objectForKey:key];
-        if (!val || (val == [NSNull null]) || [key isEqualToString:kOptionsKeyCookie]) {
+        if (!val || (val == [NSNull null]) || [key isEqualToString:kOptionsKeyCookieSimple]) {
             continue;
         }
         // if it responds to stringValue selector (eg NSNumber) get the NSString
@@ -210,7 +210,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     [postBodyBeforeFile appendData:[[NSString stringWithFormat:@"Content-Length: %ld\r\n\r\n", (long)[fileData length]] dataUsingEncoding:NSUTF8StringEncoding]];
 
     DLog(@"fileData length: %d", [fileData length]);
-    NSData* postBodyAfterFile = [[NSString stringWithFormat:@"\r\n--%@--\r\n", kFormBoundary] dataUsingEncoding:NSUTF8StringEncoding];
+    NSData* postBodyAfterFile = [[NSString stringWithFormat:@"\r\n--%@--\r\n", kFormBoundarySimple] dataUsingEncoding:NSUTF8StringEncoding];
 
     long long totalPayloadLength = [postBodyBeforeFile length] + [fileData length] + [postBodyAfterFile length];
     [req setValue:[[NSNumber numberWithLongLong:totalPayloadLength] stringValue] forHTTPHeaderField:@"Content-Length"];

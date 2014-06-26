@@ -36,7 +36,7 @@ enum CDVFileTransferSimpleDirection {
 typedef int CDVFileTransferSimpleDirection;
 
 // Magic value within the options dict used to set a cookie.
-extern NSString* const kOptionsKeyCookie;
+extern NSString* const kOptionsKeyCookieSimple;
 
 @interface CDVFileTransferSimple : CDVPlugin {}
 
