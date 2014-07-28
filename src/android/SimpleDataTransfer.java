@@ -1,36 +1,15 @@
-/*
-       Licensed to the Apache Software Foundation (ASF) under one
-       or more contributor license agreements.  See the NOTICE file
-       distributed with this work for additional information
-       regarding copyright ownership.  The ASF licenses this file
-       to you under the Apache License, Version 2.0 (the
-       "License"); you may not use this file except in compliance
-       with the License.  You may obtain a copy of the License at
-
-         http://www.apache.org/licenses/LICENSE-2.0
-
-       Unless required by applicable law or agreed to in writing,
-       software distributed under the License is distributed on an
-       "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-       KIND, either express or implied.  See the License for the
-       specific language governing permissions and limitations
-       under the License.
-*/
-package org.apache.cordova.filetransfer;
+package de.datawerk.cordova.plugin.data;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URLConnection;
 import java.security.cert.CertificateException;
@@ -48,32 +27,29 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.apache.cordova.Config;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaResourceApi;
-import org.apache.cordova.CordovaResourceApi.OpenForReadResult;
-import org.apache.cordova.PluginManager;
 import org.apache.cordova.PluginResult;
-import org.apache.cordova.file.FileUtils;
+//import org.apache.cordova.filetransfer.FileProgressResult;
+//import org.apache.cordova.filetransfer.FileUploadResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.net.Uri;
-import android.os.Build;
 import android.util.Log;
 import android.webkit.CookieManager;
 
-public class FileTransferSimple extends CordovaPlugin {
+public class SimpleDataTransfer extends CordovaPlugin {
 
-    private static final String LOG_TAG = "FileTransferSimple";
-    private static final String LINE_START = "--";
-    private static final String LINE_END = "\r\n";
-    private static final String BOUNDARY =  "+++++";
+    private static final String LOG_TAG = "SimpleDataTransfer";
+    //private static final String LINE_START = "--";
+    //private static final String LINE_END = "\r\n";
+    //private static final String BOUNDARY =  "+++++";
 
-    public static int FILE_NOT_FOUND_ERR = 1;
-    public static int INVALID_URL_ERR = 2;
+    //public static int FILE_NOT_FOUND_ERR = 1;
+    //public static int INVALID_URL_ERR = 2;
     public static int CONNECTION_ERR = 3;
     public static int ABORTED_ERR = 4;
 
@@ -82,14 +58,14 @@ public class FileTransferSimple extends CordovaPlugin {
 
     private static final class RequestContext {
         String source;
-        String target;
+        //String target;
         File targetFile;
         CallbackContext callbackContext;
         HttpURLConnection connection;
         boolean aborted;
-        RequestContext(String source, String target, CallbackContext callbackContext) {
+        RequestContext(String source, CallbackContext callbackContext) {
             this.source = source;
-            this.target = target;
+            //this.target = target;
             this.callbackContext = callbackContext;
         }
         void sendPluginResult(PluginResult pluginResult) {
@@ -174,13 +150,13 @@ public class FileTransferSimple extends CordovaPlugin {
     @Override
     public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
         if (action.equals("upload") || action.equals("download")) {
-            String source = args.getString(0);
-            String target = args.getString(1);
+            String url = args.getString(0);
+            //String target = args.getString(1);
 
             if (action.equals("upload")) {
-                upload(source, target, args, callbackContext);
+                upload(url, args, callbackContext);
             } else {
-                download(source, target, args, callbackContext);
+                download(url, args, callbackContext);
             }
             return true;
         } else if (action.equals("abort")) {
@@ -224,50 +200,44 @@ public class FileTransferSimple extends CordovaPlugin {
      * args[5] params        key:value pairs of user-defined parameters
      * @return FileUploadResult containing result of upload request
      */
-    private void upload(final String source, final String target, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        Log.d(LOG_TAG, "upload " + source + " to " +  target);
+    private void upload(final String url, JSONArray args, CallbackContext callbackContext) throws JSONException {
+        Log.d(LOG_TAG, "upload to " +  url);
 
         // Setup the options
-        final String fileKey = getArgument(args, 2, "file");
-        final String fileName = getArgument(args, 3, "image.jpg");
-        final String mimeType = getArgument(args, 4, "image/jpeg");
-        final JSONObject params = args.optJSONObject(5) == null ? new JSONObject() : args.optJSONObject(5);
-        final boolean trustEveryone = args.optBoolean(6);
-        // Always use chunked mode unless set to false as per API
-        final boolean chunkedMode = args.optBoolean(7) || args.isNull(7);
-        // Look for headers on the params map for backwards compatibility with older Cordova versions.
-        final JSONObject headers = args.optJSONObject(8) == null ? params.optJSONObject("headers") : args.optJSONObject(8);
-        final String objectId = args.getString(9);
-        final String httpMethod = getArgument(args, 10, "POST");
+        final String data = getArgument(args, 1, "");
+        final String mimeType = getArgument(args, 2, "application/json");
+        final String httpMethod = getArgument(args, 3, "POST");
+        final String objectId = args.getString(4);
+        final boolean trustEveryone = args.optBoolean(5);
+        final boolean chunkedMode = args.optBoolean(6);
+        final JSONObject headers = args.optJSONObject(7);
         
         final CordovaResourceApi resourceApi = webView.getResourceApi();
 
-        Log.d(LOG_TAG, "fileKey: " + fileKey);
-        Log.d(LOG_TAG, "fileName: " + fileName);
+        Log.d(LOG_TAG, "data length: " + data.length());
         Log.d(LOG_TAG, "mimeType: " + mimeType);
-        Log.d(LOG_TAG, "params: " + params);
+        Log.d(LOG_TAG, "httpMethod: " + httpMethod);
+        Log.d(LOG_TAG, "objectId: " + objectId);
         Log.d(LOG_TAG, "trustEveryone: " + trustEveryone);
         Log.d(LOG_TAG, "chunkedMode: " + chunkedMode);
         Log.d(LOG_TAG, "headers: " + headers);
-        Log.d(LOG_TAG, "objectId: " + objectId);
-        Log.d(LOG_TAG, "httpMethod: " + httpMethod);
         
-        final Uri targetUri = resourceApi.remapUri(Uri.parse(target));
+        final Uri targetUri = resourceApi.remapUri(Uri.parse(url));
         // Accept a path or a URI for the source.
-        Uri tmpSrc = Uri.parse(source);
-        final Uri sourceUri = resourceApi.remapUri(
-            tmpSrc.getScheme() != null ? tmpSrc : Uri.fromFile(new File(source)));
+        //Uri tmpSrc = Uri.parse(source);
+        //final Uri sourceUri = resourceApi.remapUri(
+        //    tmpSrc.getScheme() != null ? tmpSrc : Uri.fromFile(new File(source)));
 
         int uriType = CordovaResourceApi.getUriType(targetUri);
         final boolean useHttps = uriType == CordovaResourceApi.URI_TYPE_HTTPS;
-        if (uriType != CordovaResourceApi.URI_TYPE_HTTP && !useHttps) {
-            JSONObject error = createFileTransferSimpleError(INVALID_URL_ERR, source, target, null, 0, null);
-            Log.e(LOG_TAG, "Unsupported URI: " + targetUri);
-            callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
-            return;
-        }
+        //if (uriType != CordovaResourceApi.URI_TYPE_HTTP && !useHttps) {
+        //    JSONObject error = createFileTransferSimpleError(INVALID_URL_ERR, source, target, null, 0, null);
+        //    Log.e(LOG_TAG, "Unsupported URI: " + targetUri);
+        //    callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
+        //    return;
+        // }
 
-        final RequestContext context = new RequestContext(source, target, callbackContext);
+        final RequestContext context = new RequestContext(url, callbackContext);
         synchronized (activeRequests) {
             activeRequests.put(objectId, context);
         }
@@ -284,8 +254,8 @@ public class FileTransferSimple extends CordovaPlugin {
                 int fixedLength = -1;
                 try {
                     // Create return object
-                    FileUploadResult result = new FileUploadResult();
-                    FileProgressResult progress = new FileProgressResult();
+                    //FileUploadResult result = new FileUploadResult();
+                    SimpleDataProgressResult progress = new SimpleDataProgressResult();
 
                     //------------------ CLIENT REQUEST
                     // Open a HTTP connection to the URL based on protocol
@@ -311,10 +281,10 @@ public class FileTransferSimple extends CordovaPlugin {
 
                     // Use a post method.
                     conn.setRequestMethod(httpMethod);
-                    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + BOUNDARY);
+                    conn.setRequestProperty("Content-Type", mimeType);
 
                     // Set the cookies on the response
-                    String cookie = CookieManager.getInstance().getCookie(target);
+                    String cookie = CookieManager.getInstance().getCookie(url);
                     if (cookie != null) {
                         conn.setRequestProperty("Cookie", cookie);
                     }
@@ -328,48 +298,46 @@ public class FileTransferSimple extends CordovaPlugin {
                         * Store the non-file portions of the multipart data as a string, so that we can add it
                         * to the contentSize, since it is part of the body of the HTTP request.
                         */
-                    StringBuilder beforeData = new StringBuilder();
-                    try {
-                        for (Iterator<?> iter = params.keys(); iter.hasNext();) {
-                            Object key = iter.next();
-                            if(!String.valueOf(key).equals("headers"))
-                            {
-                              beforeData.append(LINE_START).append(BOUNDARY).append(LINE_END);
-                              beforeData.append("Content-Disposition: form-data; name=\"").append(key.toString()).append('"');
-                              beforeData.append(LINE_END).append(LINE_END);
-                              beforeData.append(params.getString(key.toString()));
-                              beforeData.append(LINE_END);
-                            }
-                        }
-                    } catch (JSONException e) {
-                        Log.e(LOG_TAG, e.getMessage(), e);
-                    }
+                    //StringBuilder beforeData = new StringBuilder();
+                    //try {
+                    //    for (Iterator<?> iter = params.keys(); iter.hasNext();) {
+                    //        Object key = iter.next();
+                    //        if(!String.valueOf(key).equals("headers"))
+                    //        {
+                    //          beforeData.append(LINE_START).append(BOUNDARY).append(LINE_END);
+                    //          beforeData.append("Content-Disposition: form-data; name=\"").append(key.toString()).append('"');
+                    //          beforeData.append(LINE_END).append(LINE_END);
+                    //          beforeData.append(params.getString(key.toString()));
+                    //          beforeData.append(LINE_END);
+                    //        }
+                    //    }
+                    //} catch (JSONException e) {
+                    //    Log.e(LOG_TAG, e.getMessage(), e);
+                    //}
 
-                    beforeData.append(LINE_START).append(BOUNDARY).append(LINE_END);
-                    beforeData.append("Content-Disposition: form-data; name=\"").append(fileKey).append("\";");
-                    beforeData.append(" filename=\"").append(fileName).append('"').append(LINE_END);
-                    beforeData.append("Content-Type: ").append(mimeType).append(LINE_END).append(LINE_END);
-                    byte[] beforeDataBytes = beforeData.toString().getBytes("UTF-8");
-                    byte[] tailParamsBytes = (LINE_END + LINE_START + BOUNDARY + LINE_START + LINE_END).getBytes("UTF-8");
+                    //beforeData.append(LINE_START).append(BOUNDARY).append(LINE_END);
+                    //beforeData.append("Content-Disposition: form-data; name=\"").append(fileKey).append("\";");
+                    //beforeData.append(" filename=\"").append(fileName).append('"').append(LINE_END);
+                    //beforeData.append("Content-Type: ").append(mimeType).append(LINE_END).append(LINE_END);
+                    //byte[] beforeDataBytes = beforeData.toString().getBytes("UTF-8");
+                    //byte[] tailParamsBytes = (LINE_END + LINE_START + BOUNDARY + LINE_START + LINE_END).getBytes("UTF-8");
 
                     
                     // Get a input stream of the file on the phone
-                    OpenForReadResult readResult = resourceApi.openForRead(sourceUri);
+                    //OpenForReadResult readResult = resourceApi.openForRead(sourceUri);
                     
-                    int stringLength = beforeDataBytes.length + tailParamsBytes.length;
-                    if (readResult.length >= 0) {
-                        fixedLength = (int)readResult.length + stringLength;
-                        progress.setLengthComputable(true);
-                        progress.setTotal(fixedLength);
-                    }
+                    //int stringLength = beforeDataBytes.length + tailParamsBytes.length;
+                    fixedLength = data.length();
+                    progress.setTotal(fixedLength);
+                    
                     Log.d(LOG_TAG, "Content Length: " + fixedLength);
                     // setFixedLengthStreamingMode causes and OutOfMemoryException on pre-Froyo devices.
                     // http://code.google.com/p/android/issues/detail?id=3164
                     // It also causes OOM if HTTPS is used, even on newer devices.
-                    boolean useChunkedMode = chunkedMode && (Build.VERSION.SDK_INT < Build.VERSION_CODES.FROYO || useHttps);
-                    useChunkedMode = useChunkedMode || (fixedLength == -1);
+                    //boolean useChunkedMode = chunkedMode && (Build.VERSION.SDK_INT < Build.VERSION_CODES.FROYO || useHttps);
+                    //useChunkedMode = useChunkedMode || (fixedLength == -1);
 
-                    if (useChunkedMode) {
+                    if (chunkedMode) {
                         conn.setChunkedStreamingMode(MAX_BUFFER_SIZE);
                         // Although setChunkedStreamingMode sets this header, setting it explicitly here works
                         // around an OutOfMemoryException when using https.
@@ -381,6 +349,7 @@ public class FileTransferSimple extends CordovaPlugin {
                     conn.connect();
                     
                     OutputStream sendStream = null;
+                    InputStream readResult = new ByteArrayInputStream(data.getBytes());
                     try {
                         sendStream = conn.getOutputStream();
                         synchronized (context) {
@@ -394,25 +363,26 @@ public class FileTransferSimple extends CordovaPlugin {
                         //totalBytes += beforeDataBytes.length;
     
                         // create a buffer of maximum size
-                        int bytesAvailable = readResult.inputStream.available();
+                        
+                        int bytesAvailable = readResult.available();
                         int bufferSize = Math.min(bytesAvailable, MAX_BUFFER_SIZE);
                         byte[] buffer = new byte[bufferSize];
     
                         // read file and write it into form...
-                        int bytesRead = readResult.inputStream.read(buffer, 0, bufferSize);
+                        int bytesRead = readResult.read(buffer, 0, bufferSize);
     
                         long prevBytesRead = 0;
                         while (bytesRead > 0) {
-                            result.setBytesSent(totalBytes);
+                            //result.setBytesSent(totalBytes);
                             sendStream.write(buffer, 0, bytesRead);
                             totalBytes += bytesRead;
                             if (totalBytes > prevBytesRead + 102400) {
                                 prevBytesRead = totalBytes;
                                 Log.d(LOG_TAG, "Uploaded " + totalBytes + " of " + fixedLength + " bytes");
                             }
-                            bytesAvailable = readResult.inputStream.available();
+                            bytesAvailable = readResult.available();
                             bufferSize = Math.min(bytesAvailable, MAX_BUFFER_SIZE);
-                            bytesRead = readResult.inputStream.read(buffer, 0, bufferSize);
+                            bytesRead = readResult.read(buffer, 0, bufferSize);
 
                             // Send a progress event.
                             progress.setLoaded(totalBytes);
@@ -426,7 +396,7 @@ public class FileTransferSimple extends CordovaPlugin {
                         //totalBytes += tailParamsBytes.length;
                         sendStream.flush();
                     } finally {
-                        safeClose(readResult.inputStream);
+                    	safeClose(readResult);
                         safeClose(sendStream);
                     }
                     synchronized (context) {
@@ -467,17 +437,15 @@ public class FileTransferSimple extends CordovaPlugin {
                     Log.d(LOG_TAG, "got response from server");
                     Log.d(LOG_TAG, responseString.substring(0, Math.min(256, responseString.length())));
                     
-                    // send request and retrieve response
-                    result.setResponseCode(responseCode);
-                    result.setResponse(responseString);
-
-                    context.sendPluginResult(new PluginResult(PluginResult.Status.OK, result.toJSONObject()));
-                } catch (FileNotFoundException e) {
-                    JSONObject error = createFileTransferSimpleError(FILE_NOT_FOUND_ERR, source, target, conn, e);
-                    Log.e(LOG_TAG, error.toString(), e);
-                    context.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
+                    JSONObject result = new JSONObject(
+                            "{bytesSent:" + totalBytes +
+                            ",responseCode:" + responseCode +
+                            ",response:" + JSONObject.quote(responseString) +
+                            ",objectId:" + JSONObject.quote(objectId) + "}");
+                            
+                    context.sendPluginResult(new PluginResult(PluginResult.Status.OK, result));
                 } catch (IOException e) {
-                    JSONObject error = createFileTransferSimpleError(CONNECTION_ERR, source, target, conn, e);
+                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, conn, e);
                     Log.e(LOG_TAG, error.toString(), e);
                     Log.e(LOG_TAG, "Failed after uploading " + totalBytes + " of " + fixedLength + " bytes.");
                     context.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
@@ -486,7 +454,7 @@ public class FileTransferSimple extends CordovaPlugin {
                     context.sendPluginResult(new PluginResult(PluginResult.Status.JSON_EXCEPTION));
                 } catch (Throwable t) {
                     // Shouldn't happen, but will
-                    JSONObject error = createFileTransferSimpleError(CONNECTION_ERR, source, target, conn, t);
+                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, conn, t);
                     Log.e(LOG_TAG, error.toString(), t);
                     context.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
                 } finally {
@@ -569,7 +537,7 @@ public class FileTransferSimple extends CordovaPlugin {
         return oldFactory;
     }
 
-    private static JSONObject createFileTransferSimpleError(int errorCode, String source, String target, URLConnection connection, Throwable throwable) {
+    private static JSONObject createSimpleDataTransferError(int errorCode, String url, URLConnection connection, Throwable throwable) {
 
         int httpStatus = 0;
         StringBuilder bodyBuilder = new StringBuilder();
@@ -603,7 +571,7 @@ public class FileTransferSimple extends CordovaPlugin {
             }
         }
 
-        return createFileTransferSimpleError(errorCode, source, target, body, httpStatus, throwable);
+        return createSimpleDataTransferError(errorCode, url, body, httpStatus, throwable);
     }
 
         /**
@@ -611,13 +579,12 @@ public class FileTransferSimple extends CordovaPlugin {
         * @param errorCode      the error
         * @return JSONObject containing the error
         */
-    private static JSONObject createFileTransferSimpleError(int errorCode, String source, String target, String body, Integer httpStatus, Throwable throwable) {
+    private static JSONObject createSimpleDataTransferError(int errorCode, String url, String body, Integer httpStatus, Throwable throwable) {
         JSONObject error = null;
         try {
             error = new JSONObject();
             error.put("code", errorCode);
-            error.put("source", source);
-            error.put("target", target);
+            error.put("url", url);
             if(body != null)
             {
                 error.put("body", body);
@@ -662,41 +629,41 @@ public class FileTransferSimple extends CordovaPlugin {
      * @param source        URL of the server to receive the file
      * @param target            Full path of the file on the file system
      */
-    private void download(final String source, final String target, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        Log.d(LOG_TAG, "download " + source + " to " +  target);
+    private void download(final String url, final JSONArray args, CallbackContext callbackContext) throws JSONException {
+        Log.d(LOG_TAG, "download from " + url);
 
         final CordovaResourceApi resourceApi = webView.getResourceApi();
 
-        final boolean trustEveryone = args.optBoolean(2);
-        final String objectId = args.getString(3);
-        final JSONObject headers = args.optJSONObject(4);
+        final boolean trustEveryone = args.optBoolean(1);
+        final String objectId = args.getString(2);
+        final JSONObject headers = args.optJSONObject(3);
         
-        final Uri sourceUri = resourceApi.remapUri(Uri.parse(source));
+        final Uri sourceUri = resourceApi.remapUri(Uri.parse(url));
         // Accept a path or a URI for the source.
-        Uri tmpTarget = Uri.parse(target);
-        final Uri targetUri = resourceApi.remapUri(
-            tmpTarget.getScheme() != null ? tmpTarget : Uri.fromFile(new File(target)));
+        //Uri tmpTarget = Uri.parse(target);
+        //final Uri targetUri = resourceApi.remapUri(
+        //    tmpTarget.getScheme() != null ? tmpTarget : Uri.fromFile(new File(target)));
 
         int uriType = CordovaResourceApi.getUriType(sourceUri);
         final boolean useHttps = uriType == CordovaResourceApi.URI_TYPE_HTTPS;
-        final boolean isLocalTransfer = !useHttps && uriType != CordovaResourceApi.URI_TYPE_HTTP;
-        if (uriType == CordovaResourceApi.URI_TYPE_UNKNOWN) {
-            JSONObject error = createFileTransferSimpleError(INVALID_URL_ERR, source, target, null, 0, null);
-            Log.e(LOG_TAG, "Unsupported URI: " + targetUri);
-            callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
-            return;
-        }
+        //final boolean isLocalTransfer = !useHttps && uriType != CordovaResourceApi.URI_TYPE_HTTP;
+        //if (uriType == CordovaResourceApi.URI_TYPE_UNKNOWN) {
+        //    JSONObject error = createSimpleDataTransferError(INVALID_URL_ERR, url, null, 0, null);
+        //    Log.e(LOG_TAG, "Unsupported URI: " + targetUri);
+        //    callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
+        //    return;
+        //}
         
         // TODO: refactor to also allow resources & content:
-        if (!isLocalTransfer && !Config.isUrlWhiteListed(source)) {
-            Log.w(LOG_TAG, "Source URL is not in white list: '" + source + "'");
-            JSONObject error = createFileTransferSimpleError(CONNECTION_ERR, source, target, null, 401, null);
-            callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
-            return;
-        }
+        //if (!isLocalTransfer && !Config.isUrlWhiteListed(source)) {
+        //    Log.w(LOG_TAG, "Source URL is not in white list: '" + source + "'");
+        //    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, source, null, 401, null);
+        //    callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
+        //    return;
+        //}
 
         
-        final RequestContext context = new RequestContext(source, target, callbackContext);
+        final RequestContext context = new RequestContext(url, callbackContext);
         synchronized (activeRequests) {
             activeRequests.put(objectId, context);
         }
@@ -709,30 +676,29 @@ public class FileTransferSimple extends CordovaPlugin {
                 HttpURLConnection connection = null;
                 HostnameVerifier oldHostnameVerifier = null;
                 SSLSocketFactory oldSocketFactory = null;
-                File file = null;
                 PluginResult result = null;
                 TrackingInputStream inputStream = null;
 
-                OutputStream outputStream = null;
+                OutputStream outputStream = new ByteArrayOutputStream();
                 try {
-                    OpenForReadResult readResult = null;
-                    outputStream = resourceApi.openOutputStream(targetUri);
+                    //OpenForReadResult readResult = null;
+                    //outputStream = resourceApi.openOutputStream(targetUri);
 
-                    file = resourceApi.mapUriToFile(targetUri);
-                    context.targetFile = file;
+                    //file = resourceApi.mapUriToFile(targetUri);
+                    //context.targetFile = file;
                     
                     Log.d(LOG_TAG, "Download file:" + sourceUri);
 
-                    FileProgressResult progress = new FileProgressResult();
+                    SimpleDataProgressResult progress = new SimpleDataProgressResult();
 
-                    if (isLocalTransfer) {
-                        readResult = resourceApi.openForRead(sourceUri);
-                        if (readResult.length != -1) {
-                            progress.setLengthComputable(true);
-                            progress.setTotal(readResult.length);
-                        }
-                        inputStream = new SimpleTrackingInputStream(readResult.inputStream);
-                    } else {
+                    //if (isLocalTransfer) {
+                    //    readResult = resourceApi.openForRead(sourceUri);
+                    //   if (readResult.length != -1) {
+                    //        progress.setLengthComputable(true);
+                    //        progress.setTotal(readResult.length);
+                    //    }
+                    //    inputStream = new SimpleTrackingInputStream(readResult.inputStream);
+                    //} else {
                         // connect to server
                         // Open a HTTP connection to the URL based on protocol
                         connection = resourceApi.createHttpConnection(sourceUri);
@@ -769,12 +735,11 @@ public class FileTransferSimple extends CordovaPlugin {
                             // Only trust content-length header if we understand
                             // the encoding -- identity or gzip
                             if (connection.getContentLength() != -1) {
-                                progress.setLengthComputable(true);
                                 progress.setTotal(connection.getContentLength());
                             }
                         }
                         inputStream = getInputStream(connection);
-                    }
+                    //}
                     
                     try {
                         synchronized (context) {
@@ -803,10 +768,10 @@ public class FileTransferSimple extends CordovaPlugin {
                         safeClose(outputStream);
                     }
     
-                    Log.d(LOG_TAG, "Saved file: " + target);
+                    Log.d(LOG_TAG, "Saved file: " + url);
     
                     // create FileEntry object
-                    Class webViewClass = webView.getClass();
+                    /*Class webViewClass = webView.getClass();
                     PluginManager pm = null;
                     try {
                         Method gpm = webViewClass.getMethod("getPluginManager");
@@ -829,28 +794,34 @@ public class FileTransferSimple extends CordovaPlugin {
                         if (fileEntry != null) {
                             result = new PluginResult(PluginResult.Status.OK, fileEntry);
                         } else {
-                            JSONObject error = createFileTransferSimpleError(CONNECTION_ERR, source, target, connection, null);
+                            JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, connection, null);
                             Log.e(LOG_TAG, "File plugin cannot represent download path");
                             result = new PluginResult(PluginResult.Status.IO_EXCEPTION, error);
                         }
                     } else {
                         Log.e(LOG_TAG, "File plugin not found; cannot save downloaded file");
                         result = new PluginResult(PluginResult.Status.ERROR, "File plugin not found; cannot save downloaded file");
-                    }
+                    }*/
                     
-                } catch (FileNotFoundException e) {
-                    JSONObject error = createFileTransferSimpleError(FILE_NOT_FOUND_ERR, source, target, connection, e);
-                    Log.e(LOG_TAG, error.toString(), e);
-                    result = new PluginResult(PluginResult.Status.IO_EXCEPTION, error);
+                    JSONObject data = new JSONObject(
+                            "{bytesReceived:" + outputStream.toString().length() +
+                            ",responseCode:" + connection.getResponseCode() +
+                            ",response:" + JSONObject.quote(outputStream.toString()) +
+                            ",objectId:" + JSONObject.quote(objectId) + "}");
+                            
+                    //context.sendPluginResult(new PluginResult(PluginResult.Status.OK, result));
+                    
+                    result = new PluginResult(PluginResult.Status.OK, data);
+                    
                 } catch (IOException e) {
-                    JSONObject error = createFileTransferSimpleError(CONNECTION_ERR, source, target, connection, e);
+                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, connection, e);
                     Log.e(LOG_TAG, error.toString(), e);
                     result = new PluginResult(PluginResult.Status.IO_EXCEPTION, error);
                 } catch (JSONException e) {
                     Log.e(LOG_TAG, e.getMessage(), e);
                     result = new PluginResult(PluginResult.Status.JSON_EXCEPTION);
                 } catch (Throwable e) {
-                    JSONObject error = createFileTransferSimpleError(CONNECTION_ERR, source, target, connection, e);
+                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, connection, e);
                     Log.e(LOG_TAG, error.toString(), e);
                     result = new PluginResult(PluginResult.Status.IO_EXCEPTION, error);
                 } finally {
@@ -869,12 +840,12 @@ public class FileTransferSimple extends CordovaPlugin {
                     }
 
                     if (result == null) {
-                        result = new PluginResult(PluginResult.Status.ERROR, createFileTransferSimpleError(CONNECTION_ERR, source, target, connection, null));
+                        result = new PluginResult(PluginResult.Status.ERROR, createSimpleDataTransferError(CONNECTION_ERR, url, connection, null));
                     }
                     // Remove incomplete download.
-                    if (result.getStatus() != PluginResult.Status.OK.ordinal() && file != null) {
-                        file.delete();
-                    }
+                    //if (result.getStatus() != PluginResult.Status.OK.ordinal() && file != null) {
+                    //    file.delete();
+                    //}
                     context.sendPluginResult(result);
                 }
             }
@@ -899,7 +870,7 @@ public class FileTransferSimple extends CordovaPlugin {
                             file.delete();
                         }
                         // Trigger the abort callback immediately to minimize latency between it and abort() being called.
-                        JSONObject error = createFileTransferSimpleError(ABORTED_ERR, context.source, context.target, null, -1, null);
+                        JSONObject error = createSimpleDataTransferError(ABORTED_ERR, context.source, null, -1, null);
                         context.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, error));
                         context.aborted = true;
                         if (context.connection != null) {

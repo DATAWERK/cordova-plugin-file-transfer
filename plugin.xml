@@ -20,35 +20,30 @@
 
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
-    id="de.datawerk.file-transfer-simple"
+    id="de.datawerk.cordova.plugin.data"
     version="1.0.0">
-    <name>Simple File Transfer</name>
-    <description>Cordova Simple File Transfer Plugin without multipart</description>
+    <name>Simple Data Transfer</name>
+    <description>Cordova Simple Data Transfer Plugin</description>
     <license>Apache 2.0</license>
-    <keywords>cordova,file,transfer.simple</keywords>
+    <keywords>cordova,data,transfer,simple</keywords>
 
-    <!-- dependency id="org.apache.cordova.file-transfer@1" /-->
-    <dependency id="org.apache.cordova.file-transfer" version=">=0.4.3" />
-
-    <js-module src="www/FileTransferSimple.js" name="FileTransferSimple">
-        <clobbers target="window.FileTransferSimple" />
+    <js-module src="www/SimpleDataTransfer.js" name="SimpleDataTransfer">
+        <clobbers target="window.SimpleDataTransfer" />
     </js-module>
 
     <!-- android -->
     <platform name="android">
         <config-file target="res/xml/config.xml" parent="/*">
-            <feature name="FileTransferSimple" >
-                <param name="android-package" value="org.apache.cordova.filetransfer.FileTransferSimple"/>
+            <feature name="SimpleDataTransfer" >
+                <param name="android-package" value="de.datawerk.cordova.plugin.data.SimpleDataTransfer"/>
             </feature>
         </config-file>
 
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
         </config-file>
-
-        <source-file src="src/android/FileTransferSimple.java" target-dir="src/org/apache/cordova/filetransfer" />
-        <!--<source-file src="src/android/FileProgressResult.java" target-dir="src/org/apache/cordova/filetransfer" />
-        <source-file src="src/android/FileUploadResult.java" target-dir="src/org/apache/cordova/filetransfer" />-->
+        <source-file src="src/android/SimpleDataTransfer.java" target-dir="src/de/datawerk/cordova/plugin/data" />
+    	<source-file src="src/android/SimpleDataProgressResult.java" target-dir="src/de/datawerk/cordova/plugin/data" />
     </platform>
 
     <!-- ios -->

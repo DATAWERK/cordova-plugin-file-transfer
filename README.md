@@ -17,6 +17,6 @@
          under the License.
 -->
 
-# org.apache.cordova.file-transfer
+# de.datawerk.cordova.plugin.data
 
-Plugin documentation: [doc/index.md](doc/index.md)
+TODO
