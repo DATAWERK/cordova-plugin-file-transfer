@@ -117,6 +117,31 @@ SimpleDataTransfer.prototype.upload = function(url, data, successCallback, error
     exec(win, fail, 'SimpleDataTransfer', 'upload', [url, data, mimeType, httpMethod, this._id, trustAllHosts, chunkedMode, headers]);
 };
 
+SimpleDataTransfer.prototype.uploadFileAsJson = function(file, url, successCallback, errorCallback, json, options, encryption) {
+    argscheck.checkArgs('ssFFOAO*', 'SimpleDataTransfer.uploadFileAsJson', arguments);
+
+	// add custom id
+	options[1] = this._id;
+	
+    var fail = errorCallback && function(e) {
+    	var error = simpleDataError(e);
+    	errorCallback(error);
+    };
+
+    var self = this;
+    var win = function(result) {
+    	if (typeof result.loaded != "undefined" && typeof result.total != "undefined") {
+            if (self.onprogress) {
+                self.onprogress(newSimpleDataProgressEvent(result));
+            }
+        } else {
+            successCallback && successCallback(result);
+        }
+    };
+
+    exec(win, fail, 'SimpleDataTransfer', 'uploadFileAsJson', [file, url, json, options, encryption]);
+};
+
 /**
  * Downloads a file form a given URL and saves it to the specified directory.
  * @param url {String}          	  URL of the server to receive the file
@@ -153,6 +178,31 @@ SimpleDataTransfer.prototype.download = function(url, successCallback, errorCall
     };
 
     exec(win, fail, 'SimpleDataTransfer', 'download', [url, trustAllHosts, this._id, headers]);
+};
+
+SimpleDataTransfer.prototype.downloadFileAsJson = function(file, url, successCallback, errorCallback, options, encryption) {
+    argscheck.checkArgs('ssFFAO*', 'SimpleDataTransfer.downloadFileAsJson', arguments);
+    var self = this;
+
+	// add custom id
+	options[1] = this._id;
+
+    var win = function(result) {
+    	if (typeof result.loaded != "undefined" && typeof result.total != "undefined") {
+            if (self.onprogress) {
+                return self.onprogress(newSimpleDataProgressEvent(result));
+            }
+        } else if (successCallback) {
+            successCallback(result);
+        }
+    };
+
+    var fail = errorCallback && function(e) {
+        var error = simpleDataError(e);
+        errorCallback(error);
+    };
+
+    exec(win, fail, 'SimpleDataTransfer', 'downloadFileAsJson', [file, url, options, encryption]);
 };
 
 /**
