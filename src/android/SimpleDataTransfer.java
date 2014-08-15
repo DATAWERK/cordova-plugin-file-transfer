@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URLConnection;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
@@ -37,18 +38,18 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaResourceApi;
 import org.apache.cordova.CordovaResourceApi.OpenForReadResult;
-import org.apache.cordova.file.FileUtils;
 import org.apache.cordova.PluginResult;
+import org.apache.cordova.file.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import com.neilalexander.jnacl.NaCl;
 
 import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
 import android.webkit.CookieManager;
+
+import com.neilalexander.jnacl.NaCl;
 
 public class SimpleDataTransfer extends CordovaPlugin {
 
@@ -199,238 +200,6 @@ public class SimpleDataTransfer extends CordovaPlugin {
         }
     }
 
-    /**
-     * Uploads the specified file to the server URL provided using an HTTP multipart request.
-     * @param source        Full path of the file on the file system
-     * @param target        URL of the server to receive the file
-     * @param args          JSON Array of args
-     * @param callbackContext    callback id for optional progress reports
-     *
-     * args[2] fileKey       Name of file request parameter
-     * args[3] fileName      File name to be used on server
-     * args[4] mimeType      Describes file content type
-     * args[5] params        key:value pairs of user-defined parameters
-     * @return FileUploadResult containing result of upload request
-     */
-    private void upload(final String url, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        Log.d(LOG_TAG, "upload to " +  url);
-
-        // Setup the options
-        final String data = getArgument(args, 1, "");
-        final String mimeType = getArgument(args, 2, "application/json");
-        final String httpMethod = getArgument(args, 3, "POST");
-        final String objectId = args.getString(4);
-        final boolean trustEveryone = args.optBoolean(5);
-        final boolean chunkedMode = args.optBoolean(6);
-        final JSONObject headers = args.optJSONObject(7);
-        
-        final CordovaResourceApi resourceApi = webView.getResourceApi();
-
-        Log.d(LOG_TAG, "data length: " + data.length());
-        Log.d(LOG_TAG, "mimeType: " + mimeType);
-        Log.d(LOG_TAG, "httpMethod: " + httpMethod);
-        Log.d(LOG_TAG, "objectId: " + objectId);
-        Log.d(LOG_TAG, "trustEveryone: " + trustEveryone);
-        Log.d(LOG_TAG, "chunkedMode: " + chunkedMode);
-        Log.d(LOG_TAG, "headers: " + headers);
-        
-        final Uri targetUri = resourceApi.remapUri(Uri.parse(url));
-        
-        int uriType = CordovaResourceApi.getUriType(targetUri);
-        final boolean useHttps = uriType == CordovaResourceApi.URI_TYPE_HTTPS;
-        
-        final RequestContext context = new RequestContext(url, callbackContext);
-        synchronized (activeRequests) {
-            activeRequests.put(objectId, context);
-        }
-        
-        cordova.getThreadPool().execute(new Runnable() {
-            public void run() {
-                if (context.aborted) {
-                    return;
-                }
-                HttpURLConnection conn = null;
-                HostnameVerifier oldHostnameVerifier = null;
-                SSLSocketFactory oldSocketFactory = null;
-                int totalBytes = 0;
-                int fixedLength = -1;
-                try {
-                    // Create return object
-                    SimpleDataProgressResult progress = new SimpleDataProgressResult();
-
-                    //------------------ CLIENT REQUEST
-                    // Open a HTTP connection to the URL based on protocol
-                    conn = resourceApi.createHttpConnection(targetUri);
-                    if (useHttps && trustEveryone) {
-                        // Setup the HTTPS connection class to trust everyone
-                        HttpsURLConnection https = (HttpsURLConnection)conn;
-                        oldSocketFactory  = trustAllHosts(https);
-                        // Save the current hostnameVerifier
-                        oldHostnameVerifier = https.getHostnameVerifier();
-                        // Setup the connection not to verify hostnames
-                        https.setHostnameVerifier(DO_NOT_VERIFY);
-                    }
-
-                    // Allow Inputs
-                    conn.setDoInput(true);
-
-                    // Allow Outputs
-                    conn.setDoOutput(true);
-
-                    // Don't use a cached copy.
-                    conn.setUseCaches(false);
-
-                    // Use a post method.
-                    conn.setRequestMethod(httpMethod);
-                    conn.setRequestProperty("Content-Type", mimeType);
-
-                    // Set the cookies on the response
-                    String cookie = CookieManager.getInstance().getCookie(url);
-                    if (cookie != null) {
-                        conn.setRequestProperty("Cookie", cookie);
-                    }
-
-                    // Handle the other headers
-                    if (headers != null) {
-                        addHeadersToRequest(conn, headers);
-                    }
-
-                    //int stringLength = beforeDataBytes.length + tailParamsBytes.length;
-                    fixedLength = data.length();
-                    progress.setTotal(fixedLength);
-                    
-                    Log.d(LOG_TAG, "Content Length: " + fixedLength);
-                    
-                    if (chunkedMode) {
-                        conn.setChunkedStreamingMode(MAX_BUFFER_SIZE);
-                        // Although setChunkedStreamingMode sets this header, setting it explicitly here works
-                        // around an OutOfMemoryException when using https.
-                        conn.setRequestProperty("Transfer-Encoding", "chunked");
-                    } else {
-                        conn.setFixedLengthStreamingMode(fixedLength);
-                    }
-
-                    conn.connect();
-                    
-                    OutputStream sendStream = null;
-                    InputStream readResult = new ByteArrayInputStream(data.getBytes());
-                    try {
-                        sendStream = conn.getOutputStream();
-                        synchronized (context) {
-                            if (context.aborted) {
-                                return;
-                            }
-                            context.connection = conn;
-                        }
-                        
-                        // create a buffer of maximum size
-                        int bytesAvailable = readResult.available();
-                        int bufferSize = Math.min(bytesAvailable, MAX_BUFFER_SIZE);
-                        byte[] buffer = new byte[bufferSize];
-    
-                        // read file and write it into form...
-                        int bytesRead = readResult.read(buffer, 0, bufferSize);
-    
-                        long prevBytesRead = 0;
-                        while (bytesRead > 0) {
-                            sendStream.write(buffer, 0, bytesRead);
-                            totalBytes += bytesRead;
-                            if (totalBytes > prevBytesRead + 102400) {
-                                prevBytesRead = totalBytes;
-                                Log.d(LOG_TAG, "Uploaded " + totalBytes + " of " + fixedLength + " bytes");
-                            }
-                            bytesAvailable = readResult.available();
-                            bufferSize = Math.min(bytesAvailable, MAX_BUFFER_SIZE);
-                            bytesRead = readResult.read(buffer, 0, bufferSize);
-
-                            // Send a progress event.
-                            progress.setLoaded(totalBytes);
-                            PluginResult progressResult = new PluginResult(PluginResult.Status.OK, progress.toJSONObject());
-                            progressResult.setKeepCallback(true);
-                            context.sendPluginResult(progressResult);
-                        }
-    
-                       sendStream.flush();
-                    } finally {
-                    	safeClose(readResult);
-                        safeClose(sendStream);
-                    }
-                    synchronized (context) {
-                        context.connection = null;
-                    }
-                    Log.d(LOG_TAG, "Sent " + totalBytes + " of " + fixedLength);
-
-                    //------------------ read the SERVER RESPONSE
-                    String responseString;
-                    int responseCode = conn.getResponseCode();
-                    Log.d(LOG_TAG, "response code: " + responseCode);
-                    Log.d(LOG_TAG, "response headers: " + conn.getHeaderFields());
-                    TrackingInputStream inStream = null;
-                    try {
-                        inStream = getInputStream(conn);
-                        synchronized (context) {
-                            if (context.aborted) {
-                                return;
-                            }
-                            context.connection = conn;
-                        }
-                        
-                        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(1024, conn.getContentLength()));
-                        byte[] buffer = new byte[1024];
-                        int bytesRead = 0;
-                        // write bytes to file
-                        while ((bytesRead = inStream.read(buffer)) > 0) {
-                            out.write(buffer, 0, bytesRead);
-                        }
-                        responseString = out.toString("UTF-8");
-                    } finally {
-                        synchronized (context) {
-                            context.connection = null;
-                        }
-                        safeClose(inStream);
-                    }
-                    
-                    Log.d(LOG_TAG, "got response from server");
-                    Log.d(LOG_TAG, responseString.substring(0, Math.min(256, responseString.length())));
-                    
-                    JSONObject result = new JSONObject(
-                            "{bytesSent:" + totalBytes +
-                            ",responseCode:" + responseCode +
-                            ",response:" + JSONObject.quote(responseString) +
-                            ",objectId:" + JSONObject.quote(objectId) + "}");
-                            
-                    context.sendPluginResult(new PluginResult(PluginResult.Status.OK, result));
-                } catch (IOException e) {
-                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, conn, e);
-                    Log.e(LOG_TAG, error.toString(), e);
-                    Log.e(LOG_TAG, "Failed after uploading " + totalBytes + " of " + fixedLength + " bytes.");
-                    context.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
-                } catch (JSONException e) {
-                    Log.e(LOG_TAG, e.getMessage(), e);
-                    context.sendPluginResult(new PluginResult(PluginResult.Status.JSON_EXCEPTION));
-                } catch (Throwable t) {
-                    // Shouldn't happen, but will
-                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, conn, t);
-                    Log.e(LOG_TAG, error.toString(), t);
-                    context.sendPluginResult(new PluginResult(PluginResult.Status.IO_EXCEPTION, error));
-                } finally {
-                    synchronized (activeRequests) {
-                        activeRequests.remove(objectId);
-                    }
-
-                    if (conn != null) {
-                        // Revert back to the proper verifier and socket factories
-                        if (trustEveryone && useHttps) {
-                            HttpsURLConnection https = (HttpsURLConnection) conn;
-                            https.setHostnameVerifier(oldHostnameVerifier);
-                            https.setSSLSocketFactory(oldSocketFactory);
-                        }
-                    }
-                }                
-            }
-        });
-    }
-
     private void uploadFileAsJson(JSONArray args, CallbackContext callbackContext) throws JSONException {
     	final String file = args.getString(0);
     	final String url = args.getString(1);
@@ -485,10 +254,6 @@ public class SimpleDataTransfer extends CordovaPlugin {
                 	
                 	OpenForReadResult readFileResult = resourceApi.openForRead(sourceUri);
                 	byte[] data = readBytes(readFileResult.inputStream);
-                
-                	if(data.length > 0) {
-                	
-                	}
                 	
                 	if(encryption.length() > 0) {
                 		byte[] key = NaCl.getBinary((String) encryption.get("key"));
@@ -508,13 +273,12 @@ public class SimpleDataTransfer extends CordovaPlugin {
 						data = cipher.doFinal(data);
                     }
                 	
-                	byte[] dataBase64 = Base64.encode(data, Base64.DEFAULT);
-                	String base64 = new String(dataBase64);
+                	byte[] dataBase64 = Base64.encode(data, Base64.NO_WRAP);
+                	String base64 = new String(dataBase64, "US-ASCII");
                 			
                 	json.put("data", base64);
                 	
                 	String uploadData = json.toString();
-                	
                 	
                     // Create return object
                     SimpleDataProgressResult progress = new SimpleDataProgressResult();
@@ -843,164 +607,6 @@ public class SimpleDataTransfer extends CordovaPlugin {
         return arg;
     }
 
-    /**
-     * Downloads a file form a given URL and saves it to the specified directory.
-     *
-     * @param source        URL of the server to receive the file
-     * @param target            Full path of the file on the file system
-     */
-    private void download(final String url, final JSONArray args, CallbackContext callbackContext) throws JSONException {
-        Log.d(LOG_TAG, "download from " + url);
-
-        final CordovaResourceApi resourceApi = webView.getResourceApi();
-
-        final boolean trustEveryone = args.optBoolean(1);
-        final String objectId = args.getString(2);
-        final JSONObject headers = args.optJSONObject(3);
-        
-        final Uri sourceUri = resourceApi.remapUri(Uri.parse(url));
-        
-        int uriType = CordovaResourceApi.getUriType(sourceUri);
-        final boolean useHttps = uriType == CordovaResourceApi.URI_TYPE_HTTPS;
-        
-        final RequestContext context = new RequestContext(url, callbackContext);
-        synchronized (activeRequests) {
-            activeRequests.put(objectId, context);
-        }
-        
-        cordova.getThreadPool().execute(new Runnable() {
-            public void run() {
-                if (context.aborted) {
-                    return;
-                }
-                HttpURLConnection connection = null;
-                HostnameVerifier oldHostnameVerifier = null;
-                SSLSocketFactory oldSocketFactory = null;
-                PluginResult result = null;
-                TrackingInputStream inputStream = null;
-
-                OutputStream outputStream = new ByteArrayOutputStream();
-                try {
-                     
-                    Log.d(LOG_TAG, "Download file:" + sourceUri);
-
-                    SimpleDataProgressResult progress = new SimpleDataProgressResult();
-
-                    // connect to server
-                    // Open a HTTP connection to the URL based on protocol
-                    connection = resourceApi.createHttpConnection(sourceUri);
-                    if (useHttps && trustEveryone) {
-                        // Setup the HTTPS connection class to trust everyone
-                        HttpsURLConnection https = (HttpsURLConnection)connection;
-                        oldSocketFactory = trustAllHosts(https);
-                        // Save the current hostnameVerifier
-                        oldHostnameVerifier = https.getHostnameVerifier();
-                        // Setup the connection not to verify hostnames
-                        https.setHostnameVerifier(DO_NOT_VERIFY);
-                    }
-    
-                    connection.setRequestMethod("GET");
-    
-                    // TODO: Make OkHttp use this CookieManager by default.
-                    String cookie = CookieManager.getInstance().getCookie(sourceUri.toString());
-                    if(cookie != null)
-                    {
-                        connection.setRequestProperty("cookie", cookie);
-                    }
-                    
-                    // This must be explicitly set for gzip progress tracking to work.
-                    connection.setRequestProperty("Accept-Encoding", "gzip");
-
-                    // Handle the other headers
-                    if (headers != null) {
-                        addHeadersToRequest(connection, headers);
-                    }
-    
-                    connection.connect();
-
-                    if (connection.getContentEncoding() == null || connection.getContentEncoding().equalsIgnoreCase("gzip")) {
-                        // Only trust content-length header if we understand
-                        // the encoding -- identity or gzip
-                        if (connection.getContentLength() != -1) {
-                            progress.setTotal(connection.getContentLength());
-                        }
-                    }
-                    inputStream = getInputStream(connection);
-                    
-                    try {
-                        synchronized (context) {
-                            if (context.aborted) {
-                                return;
-                            }
-                            context.connection = connection;
-                        }
-                        
-                        // write bytes to file
-                        byte[] buffer = new byte[MAX_BUFFER_SIZE];
-                        int bytesRead = 0;
-                        while ((bytesRead = inputStream.read(buffer)) > 0) {
-                            outputStream.write(buffer, 0, bytesRead);
-                            // Send a progress event.
-                            progress.setLoaded(inputStream.getTotalRawBytesRead());
-                            PluginResult progressResult = new PluginResult(PluginResult.Status.OK, progress.toJSONObject());
-                            progressResult.setKeepCallback(true);
-                            context.sendPluginResult(progressResult);
-                        }
-                    } finally {
-                        synchronized (context) {
-                            context.connection = null;
-                        }
-                        safeClose(inputStream);
-                        safeClose(outputStream);
-                    }
-    
-                    Log.d(LOG_TAG, "Saved file: " + url);
-    
-                    
-                    JSONObject data = new JSONObject(
-                            "{bytesReceived:" + outputStream.toString().length() +
-                            ",responseCode:" + connection.getResponseCode() +
-                            ",response:" + JSONObject.quote(outputStream.toString()) +
-                            ",objectId:" + JSONObject.quote(objectId) + "}");
-                            
-                    result = new PluginResult(PluginResult.Status.OK, data);
-                    
-                } catch (IOException e) {
-                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, connection, e);
-                    Log.e(LOG_TAG, error.toString(), e);
-                    result = new PluginResult(PluginResult.Status.IO_EXCEPTION, error);
-                } catch (JSONException e) {
-                    Log.e(LOG_TAG, e.getMessage(), e);
-                    result = new PluginResult(PluginResult.Status.JSON_EXCEPTION);
-                } catch (Throwable e) {
-                    JSONObject error = createSimpleDataTransferError(CONNECTION_ERR, url, connection, e);
-                    Log.e(LOG_TAG, error.toString(), e);
-                    result = new PluginResult(PluginResult.Status.IO_EXCEPTION, error);
-                } finally {
-                    safeClose(outputStream);
-                    synchronized (activeRequests) {
-                        activeRequests.remove(objectId);
-                    }
-
-                    if (connection != null) {
-                        // Revert back to the proper verifier and socket factories
-                        if (trustEveryone && useHttps) {
-                            HttpsURLConnection https = (HttpsURLConnection) connection;
-                            https.setHostnameVerifier(oldHostnameVerifier);
-                            https.setSSLSocketFactory(oldSocketFactory);
-                        }
-                    }
-
-                    if (result == null) {
-                        result = new PluginResult(PluginResult.Status.ERROR, createSimpleDataTransferError(CONNECTION_ERR, url, connection, null));
-                    }
-                    
-                    context.sendPluginResult(result);
-                }
-            }
-        });
-    }
-
     private void downloadFileAsJson(final JSONArray args, CallbackContext callbackContext) throws JSONException {
     	final String file = args.getString(0);
     	final String url = args.getString(1);
@@ -1122,7 +728,7 @@ public class SimpleDataTransfer extends CordovaPlugin {
                     JSONObject jsonData = new JSONObject(outputStream.toString());
                     
                     if(jsonData.has("data")) {
-                    	byte[] fileData = Base64.decode(jsonData.getString("data"), Base64.DEFAULT);
+                    	byte[] fileData = Base64.decode(jsonData.getString("data"), Base64.NO_WRAP);
                         if(encryption.length() > 0) {
                         	
                     		byte[] key = NaCl.getBinary((String) encryption.get("key"));
@@ -1135,6 +741,19 @@ public class SimpleDataTransfer extends CordovaPlugin {
     						fileData = cipher.doFinal(fileData);
                         }
                         
+                        // calc md5 
+                        byte[] base64FileData = Base64.encode(fileData, Base64.NO_WRAP);
+                        MessageDigest md = MessageDigest.getInstance("MD5");
+						md.update(base64FileData);
+						byte[] digest = md.digest();
+						StringBuffer sb = new StringBuffer();
+						for (byte b : digest) {
+							sb.append(String.format("%02x", b & 0xff));
+						}
+                        
+						String md5 = sb.toString();
+						jsonData.put("hash", md5);
+						
                         jsonData.remove("data");
                         
                         InputStream readResult = new ByteArrayInputStream(fileData);
@@ -1147,6 +766,9 @@ public class SimpleDataTransfer extends CordovaPlugin {
                         while ((bytesRead = readResult.read(buffer)) > 0) {
                         	fileOutputStream.write(buffer, 0, bytesRead);
                         }
+                        
+                        // set the file size
+                        jsonData.put("size", fileData.length);
                         
                         safeClose(readResult);
                         safeClose(fileOutputStream);
@@ -1165,6 +787,7 @@ public class SimpleDataTransfer extends CordovaPlugin {
                             ",objectId:" + JSONObject.quote(objectId) + "}");
                     
                     data.putOpt("file", fileEntry);
+                    data.putOpt("json", jsonData);
                     
                     result = new PluginResult(PluginResult.Status.OK, data);
                     

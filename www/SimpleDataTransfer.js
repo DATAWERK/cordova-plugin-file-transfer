@@ -63,60 +63,6 @@ var SimpleDataTransfer = function() {
     this.onprogress = null; // optional callback
 };
 
-/**
-* Given an absolute file path, uploads a file on the device to a remote server
-* using a multipart HTTP request.
-* @param url {String}           	 URL of the server to send the data
-* @param data {String}             	 DATA to send
-* @param successCallback (Function}  Callback to be invoked when upload has completed
-* @param errorCallback {Function}    Callback to be invoked upon error
-* @param options {Object} 			 Optional parameters such mimetype or headers
-*/
-SimpleDataTransfer.prototype.upload = function(url, data, successCallback, errorCallback, options) {
-    argscheck.checkArgs('ssFFO*', 'SimpleDataTransfer.upload', arguments);
-
-    // check for options
-    var mimeType = null;
-    var httpMethod = null;
-    var trustAllHosts = false;
-    var chunkedMode = true;
-    var headers = null;
-        
-    if (options) {
-        mimeType = options.mimeType;
-        httpMethod = options.httpMethod || "POST";
-        if (httpMethod.toUpperCase() == "PUT"){
-            httpMethod = "PUT";
-        } else {
-            httpMethod = "POST";
-        }
-        if (options.trustAllHosts !== null || typeof options.trustAllHosts != "undefined") {
-            trustAllHosts = options.trustAllHosts;
-        }
-        if (options.chunkedMode !== null || typeof options.chunkedMode != "undefined") {
-            chunkedMode = options.chunkedMode;
-        }
-        headers = options.headers;
-    }
-
-    var fail = errorCallback && function(e) {
-    	var error = simpleDataError(e);
-    	errorCallback(error);
-    };
-
-    var self = this;
-    var win = function(result) {
-    	if (typeof result.loaded != "undefined" && typeof result.total != "undefined") {
-            if (self.onprogress) {
-                self.onprogress(newSimpleDataProgressEvent(result));
-            }
-        } else {
-            successCallback && successCallback(result);
-        }
-    };
-    exec(win, fail, 'SimpleDataTransfer', 'upload', [url, data, mimeType, httpMethod, this._id, trustAllHosts, chunkedMode, headers]);
-};
-
 SimpleDataTransfer.prototype.uploadFileAsJson = function(file, url, successCallback, errorCallback, json, options, encryption) {
     argscheck.checkArgs('ssFFOAO*', 'SimpleDataTransfer.uploadFileAsJson', arguments);
 
@@ -140,44 +86,6 @@ SimpleDataTransfer.prototype.uploadFileAsJson = function(file, url, successCallb
     };
 
     exec(win, fail, 'SimpleDataTransfer', 'uploadFileAsJson', [file, url, json, options, encryption]);
-};
-
-/**
- * Downloads a file form a given URL and saves it to the specified directory.
- * @param url {String}          	  URL of the server to receive the file
- * @param successCallback (Function}  Callback to be invoked when upload has completed
- * @param errorCallback {Function}    Callback to be invoked upon error
- * @param options {Object} 			  Optional parameters such as headers
- */
-SimpleDataTransfer.prototype.download = function(url, successCallback, errorCallback, options) {
-    argscheck.checkArgs('sFFO*', 'SimpleDataTransfer.download', arguments);
-    var self = this;
-
-    var trustAllHosts = false;
-    var headers = null;
-    if (options) {
-    	if (options.trustAllHosts !== null || typeof options.trustAllHosts != "undefined") {
-            trustAllHosts = options.trustAllHosts;
-        }
-        headers = options.headers || null;
-    }
-
-    var win = function(result) {
-    	if (typeof result.loaded != "undefined" && typeof result.total != "undefined") {
-            if (self.onprogress) {
-                return self.onprogress(newSimpleDataProgressEvent(result));
-            }
-        } else if (successCallback) {
-            successCallback(result);
-        }
-    };
-
-    var fail = errorCallback && function(e) {
-        var error = simpleDataError(e);
-        errorCallback(error);
-    };
-
-    exec(win, fail, 'SimpleDataTransfer', 'download', [url, trustAllHosts, this._id, headers]);
 };
 
 SimpleDataTransfer.prototype.downloadFileAsJson = function(file, url, successCallback, errorCallback, options, encryption) {
