@@ -154,16 +154,7 @@ public class SimpleDataTransfer extends CordovaPlugin {
 
     @Override
     public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
-        if (action.equals("upload") || action.equals("download")) {
-            String url = args.getString(0);
-            
-            if (action.equals("upload")) {
-                upload(url, args, callbackContext);
-            } else {
-                download(url, args, callbackContext);
-            }
-            return true;
-        } else if (action.equals("uploadFileAsJson") || action.equals("downloadFileAsJson")) {
+        if (action.equals("uploadFileAsJson") || action.equals("downloadFileAsJson")) {
         	if (action.equals("uploadFileAsJson")) {
         		uploadFileAsJson(args, callbackContext);
             } else {
