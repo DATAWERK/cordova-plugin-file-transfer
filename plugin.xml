@@ -49,12 +49,12 @@
     <!-- ios -->
     <platform name="ios">
         <config-file target="config.xml" parent="/*">
-            <feature name="FileTransferSimple">
-                <param name="ios-package" value="CDVFileTransferSimple" />
+            <feature name="SimpleDataTransfer">
+                <param name="ios-package" value="SimpleDataTransfer" />
             </feature>
         </config-file>
-        <header-file src="src/ios/CDVFileTransferSimple.h" />
-        <source-file src="src/ios/CDVFileTransferSimple.m" />
+        <header-file src="src/ios/SimpleDataTransfer.h" />
+        <source-file src="src/ios/SimpleDataTransfer.m" />
 
         <framework src="AssetsLibrary.framework" />
     </platform>
