@@ -153,17 +153,18 @@ public class SimpleDataTransfer extends CordovaPlugin {
     }
 
     @Override
-    public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
+    public boolean execute(String action, String rawArgs, final CallbackContext callbackContext) throws JSONException {
         if (action.equals("uploadFileAsJson") || action.equals("downloadFileAsJson")) {
         	if (action.equals("uploadFileAsJson")) {
-        		uploadFileAsJson(args, callbackContext);
+        		uploadFileAsJson(rawArgs, callbackContext);
             } else {
-            	downloadFileAsJson(args, callbackContext);
+            	downloadFileAsJson(rawArgs, callbackContext);
             }
             return true;
         } 
         
         else if (action.equals("abort")) {
+        	JSONArray args = new JSONArray(rawArgs);
             String objectId = args.getString(0);
             abort(objectId);
             callbackContext.success();
@@ -191,7 +192,9 @@ public class SimpleDataTransfer extends CordovaPlugin {
         }
     }
 
-    private void uploadFileAsJson(JSONArray args, CallbackContext callbackContext) throws JSONException {
+    private void uploadFileAsJson(String rawArgs, CallbackContext callbackContext) throws JSONException {
+    	JSONArray args = new JSONArray(rawArgs);
+    	
     	final String file = args.getString(0);
     	final String url = args.getString(1);
         
@@ -598,7 +601,9 @@ public class SimpleDataTransfer extends CordovaPlugin {
         return arg;
     }
 
-    private void downloadFileAsJson(final JSONArray args, CallbackContext callbackContext) throws JSONException {
+    private void downloadFileAsJson(String rawArgs, CallbackContext callbackContext) throws JSONException {
+    	JSONArray args = new JSONArray(rawArgs);
+    	
     	final String file = args.getString(0);
     	final String url = args.getString(1);
         
